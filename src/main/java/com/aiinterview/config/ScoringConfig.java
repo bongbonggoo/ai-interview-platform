@@ -48,6 +48,12 @@ public class ScoringConfig {
             return new ClaudeFeedbackGenerator(RestClient.create(), objectMapper, claude);
         }
         if (gemini.hasApiKey()) {
+            // AI Studio 키는 AIza로 시작한다. OAuth 토큰을 넣으면 인증은 통과하지만
+            // 생성 호출에서 403이 나서 원인을 찾기 어렵다.
+            if (!gemini.apiKey().startsWith("AIza")) {
+                log.warn("GEMINI_API_KEY가 AI Studio 키 형식(AIza...)이 아닙니다. "
+                        + "https://aistudio.google.com/app/apikey 에서 발급한 키인지 확인하세요.");
+            }
             log.info("Gemini 피드백 생성기 활성화 (model={})", gemini.model());
             return new GeminiFeedbackGenerator(RestClient.create(), objectMapper, gemini);
         }

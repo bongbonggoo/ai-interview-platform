@@ -181,7 +181,7 @@ GET    /interviews/{sessionId}/result                      # 역량별 점수 + 
 채점기는 API 키 유무로 갈립니다:
 
 스텁은 답변 길이로만 점수를 매기는 대역이라 실제 평가에 쓰면 안 됩니다.
-모델은 `ai.claude.model`(기본 `claude-opus-5`) 또는 `ai.gemini.model`(기본 `gemini-2.5-flash`)로 바꿉니다.
+모델은 `ai.claude.model`(기본 `claude-opus-5`) 또는 `ai.gemini.model`(기본 `gemini-3.6-flash`)로 바꿉니다.
 
 ### 서비스 계층이 막아주는 것
 
