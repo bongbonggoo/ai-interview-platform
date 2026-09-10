@@ -37,4 +37,17 @@ public class CompetencyLibrary {
 
     @Column(length = 1)
     private String tier; // A / B / C
+
+    /**
+     * 기본 채점 기준(BARS). "이 역량이 어떻게 드러났는가"를 관찰하는 행동기준이며 모범답안이 아니다.
+     * 예시 답변을 여기에 넣으면 채점이 '정답과의 유사도 맞추기'가 되어 이 서비스의 전제가 무너진다.
+     */
+    @Column(name = "anchor_1", columnDefinition = "TEXT")
+    private String anchor1;
+
+    @Column(name = "anchor_3", columnDefinition = "TEXT")
+    private String anchor3;
+
+    @Column(name = "anchor_5", columnDefinition = "TEXT")
+    private String anchor5;
 }

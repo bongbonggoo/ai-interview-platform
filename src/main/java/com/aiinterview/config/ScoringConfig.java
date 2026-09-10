@@ -2,7 +2,10 @@ package com.aiinterview.config;
 
 import com.aiinterview.service.scorer.AnswerScorer;
 import com.aiinterview.service.scorer.ClaudeAnswerScorer;
+import com.aiinterview.service.scorer.ClaudeFeedbackGenerator;
+import com.aiinterview.service.scorer.FeedbackGenerator;
 import com.aiinterview.service.scorer.StubAnswerScorer;
+import com.aiinterview.service.scorer.StubFeedbackGenerator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -30,5 +33,14 @@ public class ScoringConfig {
         }
         log.info("Claude 채점기 활성화 (model={})", properties.model());
         return new ClaudeAnswerScorer(RestClient.create(), objectMapper, properties);
+    }
+
+    @Bean
+    public FeedbackGenerator feedbackGenerator(ClaudeProperties properties, ObjectMapper objectMapper) {
+        if (!properties.hasApiKey()) {
+            log.warn("ANTHROPIC_API_KEY가 없어 스텁 피드백 생성기로 뜹니다. 실제 피드백이 아닙니다.");
+            return new StubFeedbackGenerator();
+        }
+        return new ClaudeFeedbackGenerator(RestClient.create(), objectMapper, properties);
     }
 }

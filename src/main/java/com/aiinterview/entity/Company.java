@@ -1,8 +1,6 @@
 package com.aiinterview.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -32,4 +30,16 @@ public class Company extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private String status = "DRAFT_LIBRARY";
+
+    /** 사용자가 "코레일", "한전", "금감원"처럼 줄여 부르는 이름으로도 찾을 수 있게 한다. */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "company_alias", joinColumns = @JoinColumn(name = "company_id"))
+    @Column(name = "alias", nullable = false)
+    @Builder.Default
+    private java.util.Set<String> aliases = new java.util.LinkedHashSet<>();
+
+    /** 인재상 원문을 확인해 실었는지. false면 공통(NCS) 기준으로만 평가한다. */
+    @Column(name = "competency_confirmed", nullable = false)
+    @Builder.Default
+    private boolean competencyConfirmed = false;
 }

@@ -29,6 +29,13 @@ public final class ScoreCalculator {
         return round1(questionScores.stream().mapToDouble(Double::doubleValue).average().orElse(0));
     }
 
+    /** 역량별 가중치가 없을 때(자소서 피드백)의 총점: 평균 점수를 100점 환산. */
+    public static Double equalWeightScore(List<Integer> scores) {
+        if (scores.isEmpty()) return null;
+        double avg = scores.stream().mapToInt(Integer::intValue).average().orElse(0);
+        return round1(avg / MAX_SCORE * 100);
+    }
+
     private static double round1(double value) {
         return Math.round(value * 10.0) / 10.0;
     }
