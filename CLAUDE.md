@@ -26,25 +26,39 @@ Claude Code로 이 저장소를 열면 항상 먼저 읽어야 할 핵심 결정
 5. **`Question`은 지금 Company에 종속(FK)돼 있다.** `QuestionTemplate` 분리는 의도적으로
    나중으로 미룸 — 지금 미리 일반화하지 말 것.
 
-## 현재 상태 (Tier 1 완료)
+## 현재 상태
 
-- `Company`: Entity + Repository + Service + Controller 완성 (`POST/GET /companies` 동작 확인 대상)
-- `JobPosition`, `CompetencyLibrary`, `RubricVersion`, `EvaluationCriterion`, `ScoreAnchor`,
-  `Question`, `InterviewSession`, `InterviewTurn`, `InterviewAnswer`, `EvaluationResult`:
+- **Company / Question / CompetencyLibrary / RubricVersion / EvaluationCriterion / ScoreAnchor**:
+  Entity + Repository + Service + Controller 완성. 루브릭을 API만으로 세워서 verified까지 올릴 수 있다.
+- `JobPosition`, `InterviewSession`, `InterviewTurn`, `InterviewAnswer`, `EvaluationResult`:
   Entity + Repository만 있음. Service/Controller 없음.
 - User/인증 없음. `InterviewSession.userIdentifier`(문자열)로 임시 대체.
-- 이 스캐폴딩은 Maven Central 접근이 막힌 샌드박스에서 작성되어 **컴파일 검증이 안 된
-  상태**로 시작. 처음 빌드할 때 사소한 오류가 있으면 그때 고칠 것.
+- 컴파일·기동·테스트 검증 완료(Java 21, `./gradlew test` 8 passed). Gradle wrapper 포함.
+
+## 원칙이 코드로 집행되는 지점 (여기를 무력화하는 변경은 리뷰에서 막을 것)
+
+| 원칙 | 집행 위치 |
+|---|---|
+| 2. 회사별 새 역량 금지 | `CompetencyLibraryService.getEntity` — 없는 canonical_id는 404, 자동 생성하지 않음 |
+| 3. 루브릭은 덮어쓰지 않고 버전이 오른다 | `RubricVersionService.assertMutable` — verified 버전 하위 수정은 전부 409 |
+| 3. 버전 번호는 사람이 정하지 않는다 | `RubricVersionService.create` — 회사별 max+1 자동 |
+| 가중치 합 100 (워크북 SUMIF의 대체물) | `EvaluationCriterionService.create`(>100 즉시 거부) + `RubricVersionService.verify`(=100 요구) |
+| 1/3/5 BARS 앵커 강제 | `ScoreAnchorService`(level 화이트리스트) + `verify`(세 level 다 있어야 통과) |
+
+이 규칙들은 `src/test/java/com/aiinterview/rubric/RubricFlowTest.java`에 테스트로 고정돼 있다.
+규칙을 바꿔야 한다면 테스트부터 고치고, 왜 바꾸는지 근거를 남길 것.
 
 ## 다음 작업 순서
 
-1. `RubricVersion`/`EvaluationCriterion`/`ScoreAnchor`/`Question`용 Service+Controller 작성
+1. ~~`RubricVersion`/`EvaluationCriterion`/`ScoreAnchor`/`Question`용 Service+Controller~~ **완료**
 2. `korail_samuyoungeop_phase0_v3.xlsx`의 04~07 시트 데이터를 seed로 삽입
-   (Company → RubricVersion(코레일 v3, 5문항) → EvaluationCriterion → ScoreAnchor 순서로,
-   FK 의존성 순서를 반드시 지킬 것)
+   (Company → CompetencyLibrary → Question(Q1~Q5) → RubricVersion(코레일 v3) →
+   EvaluationCriterion → ScoreAnchor 순서로, FK 의존성 순서를 반드시 지킬 것)
 3. `InterviewSession` 생성 → `InterviewTurn`/`InterviewAnswer` 저장 플로우
-4. Claude API 연동 채점 서비스 (`EvaluationResult.aiScore`/`evidenceText` 채우기)
-5. 총점 계산 + 결과 조회 API → 텍스트 면접 MVP 완성
+4. Claude API 연동 채점 서비스 (`EvaluationResult.aiScore`/`evidenceText` 채우기).
+   프롬프트에는 해당 세션의 고정된 `rubricVersion`에 딸린 criterion + 1/3/5 앵커만 넣는다.
+5. 총점 계산 + 결과 조회 API → 텍스트 면접 MVP 완성.
+   총점은 서비스 계층 `Σ(ai_score/5 × weight_pct)` — AI에게 계산시키지 않는다(원칙 1).
 6. 이후 2차 테이블(리서치 엔진: `research_snapshot`/`competency_evidence`/
    `competency_evidence_source`/`competency_alias`/`competency_match_candidate`,
    골든셋/하네스: `golden_answer`/`rater`/`golden_score`/`known_issue`) 순으로 확장

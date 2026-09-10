@@ -8,4 +8,7 @@ import java.util.UUID;
 public interface EvaluationCriterionRepository extends JpaRepository<EvaluationCriterion, UUID> {
     List<EvaluationCriterion> findByQuestionId(UUID questionId);
     List<EvaluationCriterion> findByRubricVersionId(UUID rubricVersionId);
+    List<EvaluationCriterion> findByRubricVersionIdAndQuestionId(UUID rubricVersionId, UUID questionId);
+    boolean existsByRubricVersionIdAndQuestionIdAndCompetencyCanonicalId(
+            UUID rubricVersionId, UUID questionId, String canonicalId);
 }
