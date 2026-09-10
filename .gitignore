@@ -23,3 +23,7 @@ out/
 # OS
 .DS_Store
 Thumbs.db
+
+# 로컬 설정 (API 키 등) — Spring Boot가 실행 위치의 config/ 를 자동으로 읽는다.
+# 키가 저장소에 올라가지 않도록 통째로 무시한다.
+config/
