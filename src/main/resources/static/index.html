@@ -59,7 +59,7 @@
 <div class="wrap">
   <h1>AI 면접 연습 — 개발용 콘솔</h1>
   <p class="sub">
-    백엔드 API를 순서대로 호출해서 <b>면접 시작 → 질문 → 답변 저장</b> 흐름을 눈으로 확인하는 페이지입니다.
+    백엔드 API를 순서대로 호출해서 <b>면접 시작 → 질문 → 답변 저장 → AI 채점 → 결과</b> 흐름을 눈으로 확인하는 페이지입니다.
     실제 서비스 화면이 아니라 개발 중 동작 확인용입니다.
   </p>
 
@@ -103,11 +103,30 @@
   </div>
 
   <div class="step" id="s5">
-    <h2><span class="num">5</span> 종료 후 결과 확인</h2>
+    <h2><span class="num">5</span> 면접 종료</h2>
     <p class="hint">POST /interviews/{id}/end 후 GET /interviews/{id}/detail — 채점기가 받게 될 데이터입니다.</p>
     <div class="body">
       <button id="b5" disabled>면접 종료하고 저장 내용 보기</button>
       <div id="o5"></div>
+    </div>
+  </div>
+
+  <div class="step" id="s6">
+    <h2><span class="num">6</span> AI 채점</h2>
+    <p class="hint">POST /interviews/{id}/evaluate — 항목별 1~5점과 근거만 AI가 내고, 총점은 서버가 Σ(점수/5 × 가중치)로 계산합니다.</p>
+    <div class="body">
+      <div id="scorer"></div>
+      <button id="b6" disabled>채점하기</button>
+      <div id="o6"></div>
+    </div>
+  </div>
+
+  <div class="step" id="s7">
+    <h2><span class="num">7</span> 결과 화면</h2>
+    <p class="hint">GET /interviews/{id}/result — 역량별 점수와 근거, 그리고 계산된 총점.</p>
+    <div class="body">
+      <button id="b7" disabled>결과 보기</button>
+      <div id="o7"></div>
     </div>
   </div>
 
@@ -234,8 +253,38 @@ $('b5').dataset.out = 'o5';
 $('b5').onclick = busy($('b5'), async () => {
   await api('POST', `/interviews/${state.sessionId}/end`);
   show('o5', await api('GET', `/interviews/${state.sessionId}/detail`));
-  note('o5', '이 데이터가 다음 단계(AI 채점)의 입력입니다 — 어떤 회사, 어떤 루브릭 버전, 어떤 질문, 뭐라고 답했나.', 'hint');
+  note('o5', '이 데이터가 채점의 입력입니다 — 어떤 회사, 어떤 루브릭 버전, 어떤 질문, 뭐라고 답했나.', 'hint');
   markDone('s5');
+  $('b6').disabled = false;
+});
+
+$('b6').dataset.out = 'o6';
+$('b6').onclick = busy($('b6'), async () => {
+  const evaluated = await api('POST', `/interviews/${state.sessionId}/evaluate`);
+  show('o6', evaluated);
+  const by = evaluated[0]?.scoredBy || '(없음)';
+  if (by === 'stub') {
+    note('o6', '스텁 채점기로 채점했습니다 — 내용을 판단하지 않고 답변 길이로만 매긴 점수입니다. ' +
+      '실제 채점은 ANTHROPIC_API_KEY를 설정하고 다시 띄우면 Claude가 맡습니다.', 'err');
+  } else {
+    note('o6', `채점기: ${by}`, 'done');
+  }
+  note('o6', 'questionScore는 AI가 낸 값이 아니라 서버가 Σ(점수/5 × 가중치)로 계산한 값입니다.', 'hint');
+  markDone('s6');
+  $('b7').disabled = false;
+});
+
+$('b7').dataset.out = 'o7';
+$('b7').onclick = busy($('b7'), async () => {
+  const result = await api('GET', `/interviews/${state.sessionId}/result`);
+  const rows = result.answers.flatMap(a => a.criterionScores.map(c =>
+    `<div class="row"><span class="m">${c.aiScore}점</span>` +
+    `<span class="s-ok">${c.competencyLabel} (${c.weightPct}%)</span>` +
+    `<span class="path">${c.evidenceText || ''}</span></div>`)).join('');
+  $('o7').innerHTML =
+    `<div class="q"><b>총점 (서버 계산)</b>${result.totalScore ?? '-'} / 100</div>${rows}` +
+    '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+  markDone('s7');
 });
 </script>
 </body>

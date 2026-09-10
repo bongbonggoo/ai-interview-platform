@@ -7,4 +7,6 @@ import java.util.UUID;
 
 public interface EvaluationResultRepository extends JpaRepository<EvaluationResult, UUID> {
     List<EvaluationResult> findByAnswerId(UUID answerId);
+    boolean existsByAnswerId(UUID answerId);
+    List<EvaluationResult> findByAnswerTurnSessionId(UUID sessionId);
 }

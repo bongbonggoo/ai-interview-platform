@@ -20,7 +20,7 @@
 | interview_session | Entity + Repository + Service + Controller (루브릭 버전 고정) |
 | interview_turn | Entity + Repository + Service + Controller (질문 문구 스냅샷) |
 | interview_answer | Entity + Repository + Service + Controller (턴당 1회) |
-| evaluation_result | Entity + Repository |
+| evaluation_result | Entity + Repository + Service + Controller (AI 채점, 총점 계산) |
 
 **아직 없는 것**: `research_snapshot`, `competency_evidence`, `competency_evidence_source`,
 `competency_alias`, `competency_match_candidate`, `golden_answer`, `rater`, `golden_score`,
@@ -31,11 +31,11 @@
 
 ```bash
 ./gradlew bootRun     # H2 인메모리 DB, 기본 프로필
-./gradlew test        # 규칙 테스트 19개
+./gradlew test        # 규칙 테스트 34개
 ```
 
 띄운 뒤 **http://localhost:8080** 을 열면 개발용 콘솔이 나옵니다 — 샘플 데이터 생성부터
-면접 시작 → 질문 → 답변 저장 → 결과 확인까지 버튼으로 따라가며 동작을 볼 수 있습니다
+면접 시작 → 질문 → 답변 저장 → AI 채점 → 결과까지 버튼으로 따라가며 동작을 볼 수 있습니다
 (실제 서비스 화면이 아니라 동작 확인용입니다).
 
 Java 17 이상이면 됩니다(개발/검증은 21에서 했습니다). Gradle wrapper가 포함돼 있어 별도 설치는 필요 없습니다.
@@ -99,6 +99,28 @@ GET    /interviews/{sessionId}/turns/{turnId}/answer
 `questionId`를 주면 `questionTextSnapshot`은 서버가 `Question`에서 복사합니다(원본이 나중에
 바뀌어도 그 세션에서 실제로 나간 문구는 그대로 남습니다). `orderIndex`는 세션별 자동 증가.
 
+### 채점
+```
+POST   /interviews/{sessionId}/turns/{turnId}/evaluation   # 턴 하나 채점
+POST   /interviews/{sessionId}/evaluate                    # 미채점 답변 일괄 채점
+GET    /interviews/{sessionId}/result                      # 역량별 점수 + 근거 + 총점
+```
+
+**AI는 항목별 1~5점과 근거만 냅니다.** 총점은 `ScoreCalculator`가
+`Σ(ai_score / 5 × weight_pct)`로 계산하며 DB에 저장하지 않습니다 — 조회할 때마다 다시 계산합니다.
+프롬프트에는 그 세션에 고정된 루브릭 버전의 criterion과 1/3/5 앵커만 들어갑니다.
+
+채점기는 API 키 유무로 갈립니다:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-... ./gradlew bootRun   # Claude 채점기
+./gradlew bootRun                                # 스텁 채점기 (내용 판단 안 함)
+```
+
+스텁은 답변 길이로만 점수를 매기는 대역이라 실제 평가에 쓰면 안 됩니다.
+어느 쪽으로 채점됐는지는 채점 응답의 `scoredBy`에 드러납니다.
+모델은 `ai.claude.model`(기본 `claude-sonnet-5`)로 바꿉니다.
+
 ### 서비스 계층이 막아주는 것
 
 | 규칙 | 응답 |
@@ -115,6 +137,10 @@ GET    /interviews/{sessionId}/turns/{turnId}/answer
 | 한 턴에 답변 두 번 제출 | 409 |
 | 다른 세션의 턴에 답변 | 400 |
 | 종료된 세션에 턴·답변 추가 | 409 |
+| 이미 채점된 답변 재채점 | 409 |
+| 답변 없는 턴 / 꼬리질문 채점 | 422 |
+| 루브릭에 그 질문의 평가 기준이 없음 | 422 |
+| AI가 1~5 밖의 점수를 내거나 기준을 빠뜨림 | 502 (저장 안 함) |
 
 ## 동작 확인 (end-to-end)
 
@@ -154,6 +180,9 @@ curl -s -X POST localhost:8080/rubric-versions/$RUBRIC/verify
    (`Company` → `CompetencyLibrary` → `Question`(Q1~Q5) → `RubricVersion`(코레일 v3) →
    `EvaluationCriterion` → `ScoreAnchor` 순)
 3. ~~`InterviewSession` 생성 → `InterviewTurn`/`InterviewAnswer` 저장 흐름~~ **완료**
-4. Claude API 연동 — `EvaluationResult.aiScore`/`evidenceText`를 채우는 채점 서비스
-5. 총점 계산(서비스 계층, `Σ(ai_score/5 × weight_pct)`) 및 결과 조회 API
-6. 여기까지 되면 텍스트 면접 MVP 완성 → 이후 2차 테이블(리서치 엔진, 골든셋, 하네스) 순으로 확장
+4. ~~Claude API 연동 — `EvaluationResult.aiScore`/`evidenceText`를 채우는 채점 서비스~~ **완료**
+5. ~~총점 계산 및 결과 조회 API~~ **완료** → 텍스트 면접 MVP 동작
+6. 남은 것: 실제 Claude 채점 품질 확인(키를 넣고 코레일 시드로 검증), 회원/인증,
+   그리고 2차 테이블(리서치 엔진: `research_snapshot`/`competency_evidence`/
+   `competency_evidence_source`/`competency_alias`/`competency_match_candidate`,
+   골든셋/하네스: `golden_answer`/`rater`/`golden_score`/`known_issue`)

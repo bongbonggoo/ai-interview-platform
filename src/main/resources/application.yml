@@ -20,6 +20,15 @@ spring:
       enabled: true
       path: /h2-console
 
+# 채점기: 키가 있으면 Claude, 없으면 스텁(로컬에서 키 없이 전체 흐름을 돌려볼 수 있게).
+# 스텁은 내용을 판단하지 않으므로 실제 평가에 쓰면 안 된다.
+ai:
+  claude:
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: claude-sonnet-5
+    base-url: https://api.anthropic.com
+    max-tokens: 2048
+
 server:
   port: 8080
   error:

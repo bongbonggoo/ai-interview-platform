@@ -31,10 +31,11 @@ Claude Code로 이 저장소를 열면 항상 먼저 읽어야 할 핵심 결정
 - **루브릭 세우기**(Company / JobPosition / Question / CompetencyLibrary / RubricVersion /
   EvaluationCriterion / ScoreAnchor)와 **면접 응시**(InterviewSession / InterviewTurn /
   InterviewAnswer): Entity + Repository + Service + Controller 완성.
-- `EvaluationResult`: Entity + Repository만 있음. 채점 서비스가 다음 작업.
+- **채점**: `com.aiinterview.evaluation` — `AnswerScorer` 포트에 Claude 구현체와 스텁 구현체.
+  키(`ANTHROPIC_API_KEY`)가 없으면 스텁으로 뜨므로 키 없이도 전체 흐름이 돈다.
 - `src/main/resources/static/index.html`: 개발용 콘솔(전체 흐름 버튼으로 확인). 서비스 화면 아님.
 - User/인증 없음. `InterviewSession.userIdentifier`(문자열)로 임시 대체.
-- 컴파일·기동·테스트 검증 완료(Java 21, `./gradlew test` 19 passed). Gradle wrapper 포함.
+- 컴파일·기동·테스트 검증 완료(Java 21, `./gradlew test` 34 passed). Gradle wrapper 포함.
 
 ## 원칙이 코드로 집행되는 지점 (여기를 무력화하는 변경은 리뷰에서 막을 것)
 
@@ -48,6 +49,9 @@ Claude Code로 이 저장소를 열면 항상 먼저 읽어야 할 핵심 결정
 | 3. 세션은 시작 시점 루브릭을 고정 | `InterviewSessionService.create` — verified 루브릭만 허용(422), 이후 버전이 올라가도 세션은 안 바뀜 |
 | 실제로 물어본 문구 보존 | `InterviewTurnService` — 스냅샷을 클라이언트가 아니라 Question에서 복사 |
 | 답변 사후 변경 금지 | `InterviewAnswerService` — 턴당 1회, 재제출은 409 |
+| 1. AI는 총점을 내지 않는다 | `ScoreCalculator`만 총점을 만든다. `EvaluationResult`에 총점 컬럼 없음, 조회 때마다 재계산 |
+| 1. AI 출력은 믿고 저장하지 않는다 | `EvaluationService.validateAndIndex` — 1~5 밖이거나 기준 누락/중복이면 502, 저장 안 함 |
+| 확정 루브릭으로만 채점 | `EvaluationService` — 기준을 세션의 `rubricVersion`에서만 꺼낸다 |
 
 이 규칙들은 `src/test/java/com/aiinterview/rubric/RubricFlowTest.java`에 테스트로 고정돼 있다.
 규칙을 바꿔야 한다면 테스트부터 고치고, 왜 바꾸는지 근거를 남길 것.
@@ -59,10 +63,9 @@ Claude Code로 이 저장소를 열면 항상 먼저 읽어야 할 핵심 결정
    (Company → CompetencyLibrary → Question(Q1~Q5) → RubricVersion(코레일 v3) →
    EvaluationCriterion → ScoreAnchor 순서로, FK 의존성 순서를 반드시 지킬 것)
 3. ~~`InterviewSession` 생성 → `InterviewTurn`/`InterviewAnswer` 저장 플로우~~ **완료**
-4. Claude API 연동 채점 서비스 (`EvaluationResult.aiScore`/`evidenceText` 채우기).
-   프롬프트에는 해당 세션의 고정된 `rubricVersion`에 딸린 criterion + 1/3/5 앵커만 넣는다.
-5. 총점 계산 + 결과 조회 API → 텍스트 면접 MVP 완성.
-   총점은 서비스 계층 `Σ(ai_score/5 × weight_pct)` — AI에게 계산시키지 않는다(원칙 1).
-6. 이후 2차 테이블(리서치 엔진: `research_snapshot`/`competency_evidence`/
+4. ~~Claude API 연동 채점 서비스~~ **완료**
+5. ~~총점 계산 + 결과 조회 API~~ **완료** → 텍스트 면접 MVP 동작
+6. 실제 Claude 채점 품질 확인(키를 넣고 코레일 시드로 검증). 아직 실호출은 못 해봤다.
+7. 이후 2차 테이블(리서치 엔진: `research_snapshot`/`competency_evidence`/
    `competency_evidence_source`/`competency_alias`/`competency_match_candidate`,
    골든셋/하네스: `golden_answer`/`rater`/`golden_score`/`known_issue`) 순으로 확장
