@@ -66,28 +66,47 @@ GET /api/feedback/companies      # 선택 가능한 기관 목록
 
 ## 실행 방법
 
+**명령 하나면 됩니다.** 프론트엔드까지 같이 빌드해서 8080 한 포트로 서빙합니다.
+
 ```bash
-./gradlew bootRun     # H2 인메모리 DB, 기본 프로필
-./gradlew test        # 규칙 테스트 34개
+./gradlew bootRun            # macOS / Linux
+.\gradlew.bat bootRun        # Windows
 ```
 
-띄운 뒤 **http://localhost:8080** 을 열면 개발용 콘솔이 나옵니다 — 샘플 데이터 생성부터
-면접 시작 → 질문 → 답변 저장 → AI 채점 → 결과까지 버튼으로 따라가며 동작을 볼 수 있습니다
-(실제 서비스 화면이 아니라 동작 확인용입니다).
+브라우저에서 **http://localhost:8080** 을 엽니다. Node가 없어도 Gradle이 알아서 받아오므로
+npm을 따로 설치할 필요가 없습니다. Java 17 이상만 있으면 됩니다(Java 25까지 확인).
 
-Java 17 이상이면 됩니다(Java 25까지 확인). Gradle wrapper가 포함돼 있어 Gradle 설치는 필요 없습니다.
+### 실제 피드백을 받으려면 API 키
 
-Windows에서는 `./gradlew`가 아니라 **`.\gradlew.bat bootRun`** 입니다.
+키가 없으면 스텁으로 떠서 글을 읽지 않습니다(화면과 흐름 확인은 가능). 둘 중 하나를 넣으면 됩니다.
 
-**`ERROR: JAVA_HOME is set to an invalid directory`** 가 나오면 JAVA_HOME이 예전 경로를 가리키는 것입니다.
-PowerShell에서 실제 JDK 위치로 다시 잡아주세요:
-
-```powershell
-$jdk = Split-Path (Split-Path (Get-Command java).Source)
-setx JAVA_HOME $jdk
+```bash
+GEMINI_API_KEY=... ./gradlew bootRun        # 무료 티어 있음
+ANTHROPIC_API_KEY=... ./gradlew bootRun     # 유료, 건당 5센트 안팎
 ```
 
-터미널을 닫고 새로 연 다음 다시 실행하면 됩니다.
+Windows 명령 프롬프트에서는 `set GEMINI_API_KEY=...` 를 먼저 실행한 뒤 `.\gradlew.bat bootRun`.
+
+| | 발급 | 비용 |
+|---|---|---|
+| **Gemini** (권장) | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) — 구글 계정만, 결제수단 불필요 | 무료 티어 (분당·일일 요청 수 제한) |
+| **Claude** | [console.anthropic.com](https://console.anthropic.com) — 결제수단 등록 필요 | Opus 5 기준 자소서 1건당 약 5센트 |
+
+둘 다 있으면 Claude를 씁니다. 어느 쪽으로 채점됐는지는 응답의 `scoredBy`에 드러납니다.
+
+### 개발 중 프론트만 따로 (선택)
+
+화면을 고치면서 즉시 반영되게 하려면 Vite 개발 서버를 따로 띄웁니다.
+
+```bash
+cd frontend && npm install && npm run dev   # http://localhost:5173
+```
+
+`/api` 요청은 Vite가 8080으로 넘겨줍니다.
+
+```bash
+./gradlew test        # 규칙 테스트 46개
+```
 
 ## API
 
@@ -161,14 +180,8 @@ GET    /interviews/{sessionId}/result                      # 역량별 점수 + 
 
 채점기는 API 키 유무로 갈립니다:
 
-```bash
-ANTHROPIC_API_KEY=sk-ant-... ./gradlew bootRun   # Claude 채점기
-./gradlew bootRun                                # 스텁 채점기 (내용 판단 안 함)
-```
-
 스텁은 답변 길이로만 점수를 매기는 대역이라 실제 평가에 쓰면 안 됩니다.
-어느 쪽으로 채점됐는지는 채점 응답의 `scoredBy`에 드러납니다.
-모델은 `ai.claude.model`(기본 `claude-sonnet-5`)로 바꿉니다.
+모델은 `ai.claude.model`(기본 `claude-opus-5`) 또는 `ai.gemini.model`(기본 `gemini-2.5-flash`)로 바꿉니다.
 
 ### 서비스 계층이 막아주는 것
 

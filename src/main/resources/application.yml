@@ -22,10 +22,17 @@ spring:
 
 # 채점기: 키가 있으면 Claude, 없으면 스텁(로컬에서 키 없이 전체 흐름을 돌려볼 수 있게).
 # 스텁은 내용을 판단하지 않으므로 실제 평가에 쓰면 안 된다.
+# 피드백 생성기는 있는 키를 쓴다: Claude -> Gemini -> 스텁.
+# Gemini는 무료 티어가 있어 결제수단 없이 실제 피드백을 볼 수 있다
+# (키 발급: https://aistudio.google.com/app/apikey).
 ai:
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: gemini-2.5-flash
+    base-url: https://generativelanguage.googleapis.com
   claude:
     api-key: ${ANTHROPIC_API_KEY:}
-    model: claude-sonnet-5
+    model: claude-opus-5
     base-url: https://api.anthropic.com
     max-tokens: 2048
 

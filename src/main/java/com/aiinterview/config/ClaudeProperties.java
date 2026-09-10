@@ -11,7 +11,7 @@ public record ClaudeProperties(
         Integer maxTokens
 ) {
     public ClaudeProperties {
-        if (model == null || model.isBlank()) model = "claude-sonnet-5";
+        if (model == null || model.isBlank()) model = "claude-opus-5";
         if (baseUrl == null || baseUrl.isBlank()) baseUrl = "https://api.anthropic.com";
         if (maxTokens == null) maxTokens = 2048;
     }

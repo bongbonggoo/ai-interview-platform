@@ -3,6 +3,7 @@ package com.aiinterview.config;
 import com.aiinterview.service.scorer.AnswerScorer;
 import com.aiinterview.service.scorer.ClaudeAnswerScorer;
 import com.aiinterview.service.scorer.ClaudeFeedbackGenerator;
+import com.aiinterview.service.scorer.GeminiFeedbackGenerator;
 import com.aiinterview.service.scorer.FeedbackGenerator;
 import com.aiinterview.service.scorer.StubAnswerScorer;
 import com.aiinterview.service.scorer.StubFeedbackGenerator;
@@ -20,7 +21,7 @@ import org.springframework.web.client.RestClient;
  * 키가 없다고 앱이 안 뜨면 로컬에서 면접 흐름 자체를 못 돌려보게 되므로 이렇게 갈라놓는다.
  */
 @Configuration
-@EnableConfigurationProperties(ClaudeProperties.class)
+@EnableConfigurationProperties({ClaudeProperties.class, GeminiProperties.class})
 public class ScoringConfig {
 
     private static final Logger log = LoggerFactory.getLogger(ScoringConfig.class);
@@ -35,12 +36,23 @@ public class ScoringConfig {
         return new ClaudeAnswerScorer(RestClient.create(), objectMapper, properties);
     }
 
+    /**
+     * 있는 키를 쓴다: Claude -> Gemini -> 스텁.
+     * Gemini를 남겨둔 이유는 무료 티어가 있어 결제 없이 실제 피드백을 확인할 수 있기 때문이다.
+     */
     @Bean
-    public FeedbackGenerator feedbackGenerator(ClaudeProperties properties, ObjectMapper objectMapper) {
-        if (!properties.hasApiKey()) {
-            log.warn("ANTHROPIC_API_KEY가 없어 스텁 피드백 생성기로 뜹니다. 실제 피드백이 아닙니다.");
-            return new StubFeedbackGenerator();
+    public FeedbackGenerator feedbackGenerator(ClaudeProperties claude, GeminiProperties gemini,
+                                               ObjectMapper objectMapper) {
+        if (claude.hasApiKey()) {
+            log.info("Claude 피드백 생성기 활성화 (model={})", claude.model());
+            return new ClaudeFeedbackGenerator(RestClient.create(), objectMapper, claude);
         }
-        return new ClaudeFeedbackGenerator(RestClient.create(), objectMapper, properties);
+        if (gemini.hasApiKey()) {
+            log.info("Gemini 피드백 생성기 활성화 (model={})", gemini.model());
+            return new GeminiFeedbackGenerator(RestClient.create(), objectMapper, gemini);
+        }
+        log.warn("API 키가 없어 스텁 피드백 생성기로 뜹니다. 실제 피드백이 아닙니다. "
+                + "ANTHROPIC_API_KEY 또는 GEMINI_API_KEY를 설정하세요.");
+        return new StubFeedbackGenerator();
     }
 }
