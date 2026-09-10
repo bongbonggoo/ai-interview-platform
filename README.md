@@ -38,7 +38,19 @@
 면접 시작 → 질문 → 답변 저장 → AI 채점 → 결과까지 버튼으로 따라가며 동작을 볼 수 있습니다
 (실제 서비스 화면이 아니라 동작 확인용입니다).
 
-Java 17 이상이면 됩니다(개발/검증은 21에서 했습니다). Gradle wrapper가 포함돼 있어 별도 설치는 필요 없습니다.
+Java 17 이상이면 됩니다(Java 25까지 확인). Gradle wrapper가 포함돼 있어 Gradle 설치는 필요 없습니다.
+
+Windows에서는 `./gradlew`가 아니라 **`.\gradlew.bat bootRun`** 입니다.
+
+**`ERROR: JAVA_HOME is set to an invalid directory`** 가 나오면 JAVA_HOME이 예전 경로를 가리키는 것입니다.
+PowerShell에서 실제 JDK 위치로 다시 잡아주세요:
+
+```powershell
+$jdk = Split-Path (Split-Path (Get-Command java).Source)
+setx JAVA_HOME $jdk
+```
+
+터미널을 닫고 새로 연 다음 다시 실행하면 됩니다.
 
 ## API
 
