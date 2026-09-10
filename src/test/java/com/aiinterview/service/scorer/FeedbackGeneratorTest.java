@@ -72,11 +72,11 @@ class FeedbackGeneratorTest {
     @Test
     @DisplayName("Gemini 응답에서 텍스트를 뽑고, 내용이 없으면 이유와 함께 실패한다")
     void geminiExtraction() throws Exception {
-        assertThat(GeminiFeedbackGenerator.extractText(mapper.readTree(
+        assertThat(GeminiLlmClient.extractText(mapper.readTree(
                 "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"{\\\"a\\\":1}\"}]}}]}")))
                 .isEqualTo("{\"a\":1}");
 
-        assertThatThrownBy(() -> GeminiFeedbackGenerator.extractText(mapper.readTree(
+        assertThatThrownBy(() -> GeminiLlmClient.extractText(mapper.readTree(
                 "{\"candidates\":[{\"finishReason\":\"SAFETY\"}]}")))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("SAFETY");

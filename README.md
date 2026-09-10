@@ -2,18 +2,22 @@
 
 ## 핵심 기능
 
-기관을 고르고 자소서나 면접 답변을 붙여넣으면, **그 기관의 인재상을 기준으로** 어느 역량이
-어디서 드러났고 무엇이 약한지 원문을 짚어가며 피드백합니다.
+**기관을 고르면 그 기관 인재상에 맞는 면접 질문을 만들어 줍니다.** 답변을 쓰면 같은 인재상
+기준으로 어느 역량이 어디서 드러났고 무엇이 약한지 원문을 짚어가며 피드백합니다.
 
 ```
-POST /api/feedback
-{ "companyName": "코레일", "documentType": "COVER_LETTER",
-  "question": "지원동기", "content": "..." }
+GET  /api/feedback/companies     # 선택 가능한 기관 목록
+
+POST /api/feedback/questions     # 면접 질문 생성 (생성한 질문은 저장됨)
+{ "companyName": "코레일", "jobTitle": "사무영업", "count": 5 }
+
+POST /api/feedback               # 답변·자소서 피드백
+{ "companyName": "코레일", "documentType": "INTERVIEW_ANSWER",
+  "question": "...", "content": "..." }
 ```
 
-```
-GET /api/feedback/companies      # 선택 가능한 기관 목록
-```
+질문에는 모범답안이나 답변 힌트가 따라오지 않습니다. 어떤 역량을 보는 질문인지(`targets`)와
+무엇을 확인하려는지(`intent`)까지만 보여줍니다.
 
 **모범답안은 제공하지 않습니다.** 채점 기준은 "이 역량이 어떻게 드러났는가"를 보는 행동기준
 (1/3/5)이고, 부족한 부분은 짚어주되 대신 채워주지 않습니다.
