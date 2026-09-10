@@ -36,7 +36,7 @@ public class QuestionService {
                 .reusableTemplate(Boolean.TRUE.equals(request.reusableTemplate()))
                 .build();
 
-        return QuestionResponse.from(questionRepository.save(question));
+        return QuestionResponse.from(questionRepository.saveAndFlush(question));
     }
 
     public List<QuestionResponse> getByCompany(UUID companyId) {

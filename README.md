@@ -16,10 +16,10 @@
 | rubric_version | Entity + Repository + Service + Controller (버전 자동 증가, verify) |
 | evaluation_criterion | Entity + Repository + Service + Controller (가중치 검증) |
 | score_anchor | Entity + Repository + Service + Controller (level별 upsert) |
-| job_position | Entity + Repository |
-| interview_session | Entity + Repository |
-| interview_turn | Entity + Repository |
-| interview_answer | Entity + Repository |
+| job_position | Entity + Repository + Service + Controller |
+| interview_session | Entity + Repository + Service + Controller (루브릭 버전 고정) |
+| interview_turn | Entity + Repository + Service + Controller (질문 문구 스냅샷) |
+| interview_answer | Entity + Repository + Service + Controller (턴당 1회) |
 | evaluation_result | Entity + Repository |
 
 **아직 없는 것**: `research_snapshot`, `competency_evidence`, `competency_evidence_source`,
@@ -30,9 +30,13 @@
 ## 실행 방법
 
 ```bash
-./gradlew bootRun     # H2 인메모리 DB, 기본 프로필, localhost:8080
-./gradlew test        # 루브릭 규칙 테스트 8개
+./gradlew bootRun     # H2 인메모리 DB, 기본 프로필
+./gradlew test        # 규칙 테스트 19개
 ```
+
+띄운 뒤 **http://localhost:8080** 을 열면 개발용 콘솔이 나옵니다 — 샘플 데이터 생성부터
+면접 시작 → 질문 → 답변 저장 → 결과 확인까지 버튼으로 따라가며 동작을 볼 수 있습니다
+(실제 서비스 화면이 아니라 동작 확인용입니다).
 
 Java 17 이상이면 됩니다(개발/검증은 21에서 했습니다). Gradle wrapper가 포함돼 있어 별도 설치는 필요 없습니다.
 
@@ -55,6 +59,12 @@ GET    /competencies
 GET    /competencies/{canonicalId}
 ```
 
+### 직무
+```
+POST   /companies/{companyId}/job-positions     {name}
+GET    /companies/{companyId}/job-positions
+```
+
 ### 루브릭
 ```
 POST   /companies/{companyId}/rubric-versions   {changelog}   # versionNumber는 서버가 max+1로 매김
@@ -71,6 +81,24 @@ PUT    /criteria/{criterionId}/anchors     {level, description}   # level(1/3/5)
 GET    /criteria/{criterionId}/anchors
 ```
 
+### 면접
+```
+POST   /interviews                         {userIdentifier, companyId, jobPositionId, rubricVersionId, interviewerStyle}
+GET    /interviews/{sessionId}
+GET    /interviews/{sessionId}/detail      # 세션 + 턴 + 답변 (채점기 입력)
+GET    /interviews?userIdentifier=...
+POST   /interviews/{sessionId}/end
+
+POST   /interviews/{sessionId}/turns       {questionId}  또는  {questionText}  (꼬리질문)
+GET    /interviews/{sessionId}/turns
+POST   /interviews/{sessionId}/answers     {turnId, answerText, responseSeconds}
+GET    /interviews/{sessionId}/turns/{turnId}/answer
+```
+
+`status`는 컬럼이 아니라 `endedAt`에서 파생됩니다 — `in_progress` / `completed`.
+`questionId`를 주면 `questionTextSnapshot`은 서버가 `Question`에서 복사합니다(원본이 나중에
+바뀌어도 그 세션에서 실제로 나간 문구는 그대로 남습니다). `orderIndex`는 세션별 자동 증가.
+
 ### 서비스 계층이 막아주는 것
 
 | 규칙 | 응답 |
@@ -82,6 +110,11 @@ GET    /criteria/{criterionId}/anchors
 | 같은 질문에 같은 역량 중복 등록 | 409 |
 | 루브릭의 회사와 다른 회사의 질문 연결 | 400 |
 | 앵커 level이 1/3/5가 아님 | 400 |
+| verified 아닌 루브릭으로 면접 시작 | 422 |
+| 세션의 회사와 다른 회사의 직무·루브릭·질문 연결 | 400 |
+| 한 턴에 답변 두 번 제출 | 409 |
+| 다른 세션의 턴에 답변 | 400 |
+| 종료된 세션에 턴·답변 추가 | 409 |
 
 ## 동작 확인 (end-to-end)
 
@@ -120,7 +153,7 @@ curl -s -X POST localhost:8080/rubric-versions/$RUBRIC/verify
 2. `korail_samuyoungeop_phase0_v3.xlsx`의 04~07 시트 데이터를 seed로 삽입
    (`Company` → `CompetencyLibrary` → `Question`(Q1~Q5) → `RubricVersion`(코레일 v3) →
    `EvaluationCriterion` → `ScoreAnchor` 순)
-3. `InterviewSession` 생성 → `InterviewTurn`/`InterviewAnswer` 저장 흐름 구현
+3. ~~`InterviewSession` 생성 → `InterviewTurn`/`InterviewAnswer` 저장 흐름~~ **완료**
 4. Claude API 연동 — `EvaluationResult.aiScore`/`evidenceText`를 채우는 채점 서비스
 5. 총점 계산(서비스 계층, `Σ(ai_score/5 × weight_pct)`) 및 결과 조회 API
 6. 여기까지 되면 텍스트 면접 MVP 완성 → 이후 2차 테이블(리서치 엔진, 골든셋, 하네스) 순으로 확장

@@ -29,7 +29,7 @@ public class CompanyService {
                 .status("draft_library")
                 .build();
 
-        return CompanyResponse.from(companyRepository.save(company));
+        return CompanyResponse.from(companyRepository.saveAndFlush(company));
     }
 
     public CompanyResponse getById(UUID id) {

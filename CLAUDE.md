@@ -28,12 +28,13 @@ Claude Code로 이 저장소를 열면 항상 먼저 읽어야 할 핵심 결정
 
 ## 현재 상태
 
-- **Company / Question / CompetencyLibrary / RubricVersion / EvaluationCriterion / ScoreAnchor**:
-  Entity + Repository + Service + Controller 완성. 루브릭을 API만으로 세워서 verified까지 올릴 수 있다.
-- `JobPosition`, `InterviewSession`, `InterviewTurn`, `InterviewAnswer`, `EvaluationResult`:
-  Entity + Repository만 있음. Service/Controller 없음.
+- **루브릭 세우기**(Company / JobPosition / Question / CompetencyLibrary / RubricVersion /
+  EvaluationCriterion / ScoreAnchor)와 **면접 응시**(InterviewSession / InterviewTurn /
+  InterviewAnswer): Entity + Repository + Service + Controller 완성.
+- `EvaluationResult`: Entity + Repository만 있음. 채점 서비스가 다음 작업.
+- `src/main/resources/static/index.html`: 개발용 콘솔(전체 흐름 버튼으로 확인). 서비스 화면 아님.
 - User/인증 없음. `InterviewSession.userIdentifier`(문자열)로 임시 대체.
-- 컴파일·기동·테스트 검증 완료(Java 21, `./gradlew test` 8 passed). Gradle wrapper 포함.
+- 컴파일·기동·테스트 검증 완료(Java 21, `./gradlew test` 19 passed). Gradle wrapper 포함.
 
 ## 원칙이 코드로 집행되는 지점 (여기를 무력화하는 변경은 리뷰에서 막을 것)
 
@@ -44,6 +45,9 @@ Claude Code로 이 저장소를 열면 항상 먼저 읽어야 할 핵심 결정
 | 3. 버전 번호는 사람이 정하지 않는다 | `RubricVersionService.create` — 회사별 max+1 자동 |
 | 가중치 합 100 (워크북 SUMIF의 대체물) | `EvaluationCriterionService.create`(>100 즉시 거부) + `RubricVersionService.verify`(=100 요구) |
 | 1/3/5 BARS 앵커 강제 | `ScoreAnchorService`(level 화이트리스트) + `verify`(세 level 다 있어야 통과) |
+| 3. 세션은 시작 시점 루브릭을 고정 | `InterviewSessionService.create` — verified 루브릭만 허용(422), 이후 버전이 올라가도 세션은 안 바뀜 |
+| 실제로 물어본 문구 보존 | `InterviewTurnService` — 스냅샷을 클라이언트가 아니라 Question에서 복사 |
+| 답변 사후 변경 금지 | `InterviewAnswerService` — 턴당 1회, 재제출은 409 |
 
 이 규칙들은 `src/test/java/com/aiinterview/rubric/RubricFlowTest.java`에 테스트로 고정돼 있다.
 규칙을 바꿔야 한다면 테스트부터 고치고, 왜 바꾸는지 근거를 남길 것.
@@ -54,7 +58,7 @@ Claude Code로 이 저장소를 열면 항상 먼저 읽어야 할 핵심 결정
 2. `korail_samuyoungeop_phase0_v3.xlsx`의 04~07 시트 데이터를 seed로 삽입
    (Company → CompetencyLibrary → Question(Q1~Q5) → RubricVersion(코레일 v3) →
    EvaluationCriterion → ScoreAnchor 순서로, FK 의존성 순서를 반드시 지킬 것)
-3. `InterviewSession` 생성 → `InterviewTurn`/`InterviewAnswer` 저장 플로우
+3. ~~`InterviewSession` 생성 → `InterviewTurn`/`InterviewAnswer` 저장 플로우~~ **완료**
 4. Claude API 연동 채점 서비스 (`EvaluationResult.aiScore`/`evidenceText` 채우기).
    프롬프트에는 해당 세션의 고정된 `rubricVersion`에 딸린 criterion + 1/3/5 앵커만 넣는다.
 5. 총점 계산 + 결과 조회 API → 텍스트 면접 MVP 완성.

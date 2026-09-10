@@ -28,8 +28,8 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class RubricVersionService {
 
-    static final String STATUS_DRAFT = "draft";
-    static final String STATUS_VERIFIED = "verified";
+    public static final String STATUS_DRAFT = "draft";
+    public static final String STATUS_VERIFIED = "verified";
     private static final Set<Integer> REQUIRED_ANCHOR_LEVELS = Set.of(1, 3, 5);
     private static final int REQUIRED_WEIGHT_SUM = 100;
 
@@ -55,7 +55,7 @@ public class RubricVersionService {
                 .changelog(request == null ? null : request.changelog())
                 .build();
 
-        return RubricVersionResponse.from(rubricVersionRepository.save(rubricVersion));
+        return RubricVersionResponse.from(rubricVersionRepository.saveAndFlush(rubricVersion));
     }
 
     public List<RubricVersionResponse> getByCompany(UUID companyId) {
